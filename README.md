@@ -4,7 +4,7 @@
 ![Tech Stack](https://img.shields.io/badge/Tech-HTML5%20%7C%20CSS3%20%7C%20JavaScript-green.svg)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen.svg)
 
-基于深度学习的风电场功率预测与智能管理可视化平台
+基于深度学习的风电场功率预测与智能管理可视化平台 纯ai写的，纯前端页面，瞎搞的，闲来无事，还是有很多bug，有时间在修
 
 ## ✨ 功能特性
 
