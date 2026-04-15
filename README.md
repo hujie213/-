@@ -5,6 +5,7 @@
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen.svg)
 
 基于深度学习的风电场功率预测与智能管理可视化平台
+纯页面，用ai搞着玩的，还有很多问题，后期有时间进行修改
 
 ## ✨ 功能特性
 
