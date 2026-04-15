@@ -129,6 +129,35 @@
             color: #ef4444;
             font-weight: 500;
         }
+        .server-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 20px;
+            color: #ef4444;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .server-status.connected {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        .status-dot.connected {
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
         .main-content {
             margin-left: 260px;
             padding: 24px;
@@ -555,6 +584,13 @@
                     <p>实时监控风电场运行状态</p>
                 </div>
                 <div class="header-right">
+                    <div class="server-status" id="server-status">
+                        <span class="status-dot offline" id="status-dot"></span>
+                        <span id="server-text">未连接</span>
+                    </div>
+                    <button class="btn-primary" style="padding: 8px 16px; font-size: 12px;" onclick="connectServer()">
+                        🔗 连接服务器
+                    </button>
                     <div class="time-display">
                         <i>🕐</i>
                         <div>
@@ -835,12 +871,42 @@
                         <div style="font-size: 48px; margin-bottom: 20px;">📥</div>
                         <h2 style="margin-bottom: 10px;">数据文件导入</h2>
                         <p style="color: #8b9bb4; margin-bottom: 30px;">支持 CSV 格式的数据文件</p>
+                        
+                        <div style="margin-bottom: 20px; text-align: left;">
+                            <h3 style="font-size: 14px; color: #94a3b8; margin-bottom: 10px;">字段映射配置</h3>
+                            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                <div>
+                                    <label style="font-size: 12px; color: #64748b;">时间字段:</label>
+                                    <input type="text" id="time-field" value="datetime" style="width: 120px; padding: 6px; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #fff; font-size: 12px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #64748b;">功率字段:</label>
+                                    <input type="text" id="power-field" value="load" style="width: 120px; padding: 6px; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #fff; font-size: 12px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #64748b;">温度字段:</label>
+                                    <input type="text" id="temp-field" value="temperature" style="width: 120px; padding: 6px; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #fff; font-size: 12px;">
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="upload-area" id="data-upload" onclick="document.getElementById('data-file').click();">
                             <input type="file" id="data-file" accept=".csv" style="display: none;" onchange="handleDataUpload(event);">
                             <div style="font-size: 32px; margin-bottom: 15px;">⬆️</div>
                             <p>点击或拖拽文件到此处上传</p>
                             <p style="font-size: 12px; color: #8b9bb4; margin-top: 10px;">支持 CSV 格式 (.csv)</p>
                         </div>
+                        
+                        <div style="margin-top: 20px; padding: 15px; background: rgba(14, 165, 233, 0.1); border-radius: 8px; text-align: left;">
+                            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">📝 支持的格式示例：</p>
+                            <code style="font-size: 11px; color: #94a3b8;">
+datetime,load,temperature,humidity<br>
+2024-01-01 00:00,25000,12.5,65<br>
+2024-01-01 01:00,22000,11.8,68<br>
+2024-01-01 02:00,18000,11.2,70
+                            </code>
+                        </div>
+                        
                         <div id="data-upload-status" style="margin-top: 20px; display: none;">
                             <div class="status-success" id="data-success" style="display: none;">
                                 <span>✅</span>
@@ -861,12 +927,83 @@
     </div>
 
     <script>
+        let serverConnected = false;
+        const SERVER_URL = 'http://localhost:9999';
+
         function updateTime() {
             const now = new Date();
             document.getElementById('current-time').textContent = now.toLocaleTimeString('zh-CN');
         }
         setInterval(updateTime, 1000);
         updateTime();
+
+        async function connectServer() {
+            const statusDiv = document.getElementById('server-status');
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('server-text');
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/health`);
+                if (response.ok) {
+                    serverConnected = true;
+                    statusDiv.classList.add('connected');
+                    statusDot.classList.add('connected');
+                    statusText.textContent = '已连接';
+                    alert('✅ 服务器连接成功！');
+                    
+                    checkModelStatus();
+                } else {
+                    throw new Error('连接失败');
+                }
+            } catch (error) {
+                alert('❌ 无法连接到服务器，请确保后端服务已启动');
+            }
+        }
+
+        async function checkModelStatus() {
+            if (!serverConnected) return;
+            
+            try {
+                const response = await fetch(`${SERVER_URL}/api/model_status`);
+                const data = await response.json();
+                console.log('模型状态:', data);
+            } catch (error) {
+                console.error('获取模型状态失败:', error);
+            }
+        }
+
+        async function predictWithServer(features) {
+            if (!serverConnected) {
+                alert('请先连接服务器');
+                return null;
+            }
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/predict`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ features })
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('预测失败:', error);
+                return null;
+            }
+        }
+
+        async function submitActualValue(timestamp, actual) {
+            if (!serverConnected) return;
+
+            try {
+                await fetch(`${SERVER_URL}/api/submit_actual`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ timestamp, actual })
+                });
+            } catch (error) {
+                console.error('提交实际值失败:', error);
+            }
+        }
 
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
@@ -1406,14 +1543,99 @@
             if (file) {
                 const ext = file.name.split('.').pop().toLowerCase();
                 if (ext === 'csv') {
-                    successDiv.style.display = 'flex';
-                    setTimeout(() => {
-                        alert('数据导入成功！');
-                    }, 500);
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const csvData = e.target.result;
+                        parseAndApplyCSV(csvData);
+                        successDiv.style.display = 'flex';
+                        setTimeout(() => {
+                            alert('数据导入成功！图表已更新！');
+                            showPage('prediction');
+                        }, 500);
+                    };
+                    reader.readAsText(file);
                 } else {
                     errorDiv.style.display = 'flex';
                 }
             }
+        }
+
+        function parseAndApplyCSV(csvData) {
+            const lines = csvData.split('\n');
+            const times = [];
+            const powerData = [];
+            const windData = [];
+            
+            for (let i = 1; i < Math.min(lines.length, 25); i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    const parts = line.split(',');
+                    if (parts.length >= 2) {
+                        const time = parts[0].replace(/"/g, '');
+                        const power = parseFloat(parts[1]);
+                        times.push(time);
+                        powerData.push(power);
+                        windData.push(4 + Math.random() * 6);
+                    }
+                }
+            }
+            
+            if (powerData.length > 0) {
+                window.importedPowerData = powerData;
+                window.importedTimes = times;
+                window.importedWindData = windData;
+                
+                if (powerChart) {
+                    powerChart.destroy();
+                }
+                initPowerChartWithImportedData();
+            }
+        }
+
+        function initPowerChartWithImportedData() {
+            const ctx = document.getElementById('powerChart').getContext('2d');
+            powerChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: window.importedTimes || [],
+                    datasets: [{
+                        label: '导入数据 - 功率 (W)',
+                        data: window.importedPowerData || [],
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14, 165, 233, 0.2)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#0ea5e9',
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { color: '#94a3b8' } },
+                        tooltip: {
+                            enabled: true,
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            callbacks: {
+                                title: function(context) { return `时间: ${context[0].label}`; },
+                                label: function(context) { return `${context.dataset.label}: ${context.parsed.y.toLocaleString()} W`; }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', maxRotation: 45 } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', callback: (v) => v.toLocaleString() }, beginAtZero: true }
+                    }
+                }
+            });
         }
 
         function loadDemoModel() {
@@ -1432,11 +1654,27 @@
             const statusDiv = document.getElementById('data-upload-status');
             const successDiv = document.getElementById('data-success');
             
+            const times = [];
+            const powerData = [];
+            for (let i = 0; i < 24; i++) {
+                times.push(`${i.toString().padStart(2, '0')}:00`);
+                powerData.push(Math.round(25000 + Math.sin(i * 0.3) * 15000 + Math.random() * 8000));
+            }
+            
+            window.importedPowerData = powerData;
+            window.importedTimes = times;
+            
+            if (powerChart) {
+                powerChart.destroy();
+            }
+            initPowerChartWithImportedData();
+            
             statusDiv.style.display = 'block';
             successDiv.style.display = 'flex';
             
             setTimeout(() => {
-                alert('演示数据加载成功！');
+                alert('演示数据加载成功！图表已更新！');
+                showPage('prediction');
             }, 500);
         }
 
